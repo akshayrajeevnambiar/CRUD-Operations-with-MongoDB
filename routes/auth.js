@@ -1,1 +1,0 @@
-// handles the authentication route
