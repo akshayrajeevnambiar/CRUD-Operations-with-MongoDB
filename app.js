@@ -20,6 +20,9 @@ const app = express();
 const PORT = process.env.PORT;
 const URI = process.env.MONGOOSE_URI;
 
+// fetching all the routes
+const courseRoutes = require("./routes/courses");
+
 // establishing the mongodb connection
 mongoose
   .connect(URI, {
@@ -34,6 +37,8 @@ mongoose
   });
 
 app.use(bodyParser.json());
+
+app.use("/courses", courseRoutes);
 
 // Listening to the PORT
 app.listen(PORT, () => {
