@@ -22,4 +22,15 @@ router.post("/create", validateCourse, async (req, res) => {
   }
 });
 
+// route that fetches all of the courses
+router.get("/all", async (req, res) => {
+  try {
+    const courses = await Courses.find();
+    console.log(courses);
+    res.status(201).send(courses);
+  } catch (err) {
+    res.status(400).send(err.message);
+  }
+});
+
 module.exports = router;
