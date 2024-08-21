@@ -5,19 +5,19 @@ const { signupSchema, signinSchema } = require("../schemas/auth");
 
 const validateSigninCredentials = (req, res, next) => {
   try {
-    signinSchema(req);
+    signinSchema.parse(req.body);
     next();
   } catch (err) {
-    res.status(400).send(err.errors());
+    res.status(400).send(err.message);
   }
 };
 
 const validateSignUpCredentials = (req, res, next) => {
   try {
-    signupSchema(req);
+    signupSchema.parse(req.body);
     next();
   } catch (err) {
-    res.status(400).send(err.errors());
+    res.status(400).send(err.message);
   }
 };
 

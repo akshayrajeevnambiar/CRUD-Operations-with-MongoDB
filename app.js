@@ -20,8 +20,9 @@ const app = express();
 const PORT = process.env.PORT;
 const URI = process.env.MONGOOSE_URI;
 
-// fetching all the routes
+// fetching all the routers
 const courseRoutes = require("./routes/courses");
+const userRoutes = require("./routes/users");
 
 // establishing the mongodb connection
 mongoose
@@ -39,6 +40,8 @@ mongoose
 app.use(bodyParser.json());
 
 app.use("/courses", courseRoutes);
+
+app.use("/users", userRoutes);
 
 // Listening to the PORT
 app.listen(PORT, () => {
