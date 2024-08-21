@@ -19,6 +19,16 @@ router.post("/register", validateSignUpCredentials, async (req, res) => {
     // fetching the associated credentials from request body
     const { username, email, password } = req.body;
 
+    // Check if the user already exists
+    const isExistingUser = await User.findOne({ email: email });
+
+    if (isExistingUser) {
+      return res
+        .status(200)
+        .send("Email already exists please proceed to sigin");
+    }
+
+    // If the user doesnt exist continue to signin
     // sending in the data
     const user = new User({
       username: username,
