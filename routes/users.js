@@ -13,6 +13,9 @@ const User = require("../models/user");
 // import the jsonwebtoken library to sign the user after signup
 const jwt = require("jsonwebtoken");
 
+// importing password-hash library to hash the password
+const passwordHash = require("password-hash");
+
 // calling in the validation middleware to check upon user credntials
 const {
   validateSignUpCredentials,
@@ -54,12 +57,16 @@ router.post("/register", validateSignUpCredentials, async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET
     );
 
+    // hashing the password before storing it into the
+    // database
+    const hashedPassword = passwordHash.generate(password);
+
     // If the user doesnt exist continue to signin
     // sending in the data with the refresh token
     const user = new User({
       username: username,
       email: email,
-      password: password,
+      password: hashedPassword,
       refreshToken: refreshToken,
     });
 
@@ -90,17 +97,27 @@ router.post("/login", validateSigninCredentials, async (req, res) => {
     const user = await User.findOne({ email: email });
 
     // check to see if the user exists
-    if (user) {
+    if (!user) {
       // if user is found return his/her purchased course list
-      return res
-        .status(200)
-        .send(
-          `Welcome Back ${user.username}! ` +
-            (user.courses && user.courses.length > 0
-              ? `Here are your purchased courses: ${user.courses.join(", ")}`
-              : "You have not purchased any courses yet.")
-        );
+      return res.status(403).send("No user found");
     }
+
+    // verfying the password with the hashed password
+    const isMatch = passwordHash.verify(password, user.password);
+
+    if (!isMatch) {
+      // if the passwords do no match
+      return res.status(401).send("Incorrect password");
+    }
+
+    return res
+      .status(200)
+      .send(
+        `Welcome Back ${user.username}! ` +
+          (user.courses && user.courses.length > 0
+            ? `Here are your purchased courses: ${user.courses.join(", ")}`
+            : "You have not purchased any courses yet.")
+      );
 
     res.status(400).send("User doesnt exist");
   } catch (err) {
