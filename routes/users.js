@@ -20,7 +20,10 @@ const {
 } = require("../middlewares/validateUser");
 
 // importing the authenticateUser function to verify jwt
-const { authenticateUser } = require("../middlewares/authenticate");
+const {
+  authenticateUser,
+  authenticateToken,
+} = require("../middlewares/authenticate");
 
 // creating a signup route
 router.post("/register", validateSignUpCredentials, async (req, res) => {
@@ -37,28 +40,40 @@ router.post("/register", validateSignUpCredentials, async (req, res) => {
         .send("Email already exists please proceed to sigin");
     }
 
+    // generate a jwt so user can login automatically in future logins
+    // made the access token expire in 15 mins for added security
+    const accessToken = jwt.sign(
+      { email: user.email, id: user._id },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "15min" }
+    );
+
+    // generating a refresh token upon login
+    const refreshToken = jwt.sign(
+      { email: user.email, id: user._id },
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
     // If the user doesnt exist continue to signin
-    // sending in the data
+    // sending in the data with the refresh token
     const user = new User({
       username: username,
       email: email,
       password: password,
+      refreshToken: refreshToken,
     });
 
     // waiting for the data to save in the database
     await user.save();
-
-    // generate a jwt so user can login automatically in future logins
-    const accessToken = jwt.sign(
-      { email: user.email, id: user._id },
-      process.env.ACCESS_TOKEN_SECRET
-    );
 
     // sending in a confirmation upon completing the save and the access token
     res.status(200).json({
       message: "The User has been created",
       accessToken,
     });
+
+    // sending in the refesh token as a http cookie
+    res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true });
   } catch (err) {
     // logging in the error
     res.status(400).send(err.message);
@@ -104,6 +119,92 @@ router.post("/profile", authenticateUser, async (req, res) => {
     res.status(200).json(user);
   } catch (err) {
     res.status(500).send(err.message);
+  }
+});
+
+// protected route to handle the regenration of the access token using the
+// refresh token
+router.post("/token", async (req, res) => {
+  // fetch the refresh token from the cookies
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) res.status(401).send("Invalid refresh token");
+
+  // when we get the valid refresh token
+  try {
+    // fetching the user details
+    const user = await User.findOne({ refreshToken: refreshToken });
+
+    // checking is such a user exist
+    if (!user) res.status(403).send("User not found");
+
+    // verifying the autenticity of the token
+    jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+      async (err, decoded) => {
+        if (err) res.status(403).send(err.message);
+
+        // generate new access token
+        const newAccessToken = jwt.sign(
+          { email: user.email, id: user._id },
+          process.env.ACCESS_TOKEN_SECRET,
+          { expiresIn: "15min" }
+        );
+
+        const newRefreshToken = jwt.sign(
+          { email: user.email, id: user._id },
+          process.env.REFRESH_TOKEN_SECRET
+        );
+
+        // setting in the new refresh token into the database
+        user.refreshToken = newRefreshToken;
+
+        // saving the updates into the database
+        await user.save();
+
+        // updating the cookie as well with the new refresh token
+        res.cookie("refreshToken", newRefreshToken, {
+          httpOnly: true,
+          secure: true,
+        });
+
+        // sending in the newly generated refresh token and access token
+        res.status(200).json({
+          message: "token generated",
+          newAccessToken,
+        });
+      }
+    );
+  } catch (err) {
+    res.status(403).send(err.message);
+  }
+});
+
+// adding a route for logging out so that the refresh token can
+// be invalidated
+router.post("/logout", authenticateToken, async (req, res) => {
+  // fetching the refresh token
+  const refreshToken = req.user.refreshToken;
+
+  // if there was a refresh token
+  try {
+    // tyring to fetch the user details using the refresh token
+    const user = await User.findOne({ refreshToken: refreshToken });
+
+    // reseting the refresh token value in the database
+    user.refreshToken = null;
+
+    // saving the data within the database
+    await user.save();
+
+    // clearing up the cookie values as well
+    res.clearCookie("refreshToken");
+
+    // sendind in the result message
+    res.status(200).send("User logged out successfully");
+  } catch (err) {
+    res.status(200).send(err.message);
   }
 });
 

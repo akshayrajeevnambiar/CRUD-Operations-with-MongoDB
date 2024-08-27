@@ -14,6 +14,9 @@ const user = new mongoose.Schema({
       ref: "Courses",
     },
   ],
+
+  // updating the model to include refresh token
+  refreshToken: { type: String },
 });
 
 // Defining the model

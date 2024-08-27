@@ -34,5 +34,21 @@ const authenticateUser = (req, res, next) => {
   }
 };
 
-// exporting the function
-module.exports = { authenticateUser };
+// creating a middleware to authenticate the token
+const authenticateToken = (req, res, next) => {
+  // extracting the refresh token from the cookie
+  const refreshToken = req.cookies.refreshToken;
+
+  // checking if the refresh token is not null
+  if (!refreshToken) return res.status(403).send("No token found");
+
+  // verfying the token to check the validity of the token found
+  jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+};
+
+// exporting the authentication middlewares
+module.exports = { authenticateUser, authenticateToken };
