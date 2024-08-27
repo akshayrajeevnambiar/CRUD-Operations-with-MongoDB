@@ -43,6 +43,21 @@ router.post("/register", validateSignUpCredentials, async (req, res) => {
         .send("Email already exists please proceed to sigin");
     }
 
+    // hashing the password before storing it into the
+    // database
+    const hashedPassword = passwordHash.generate(password);
+
+    // logging out the hashed password
+    console.log(hashedPassword);
+
+    // If the user doesnt exist continue to signin
+    // sending in the data with the refresh token
+    const user = new User({
+      username: username,
+      email: email,
+      password: hashedPassword,
+    });
+
     // generate a jwt so user can login automatically in future logins
     // made the access token expire in 15 mins for added security
     const accessToken = jwt.sign(
@@ -57,18 +72,8 @@ router.post("/register", validateSignUpCredentials, async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET
     );
 
-    // hashing the password before storing it into the
-    // database
-    const hashedPassword = passwordHash.generate(password);
-
-    // If the user doesnt exist continue to signin
-    // sending in the data with the refresh token
-    const user = new User({
-      username: username,
-      email: email,
-      password: hashedPassword,
-      refreshToken: refreshToken,
-    });
+    // saving the refresh token data after the user object has been initialised
+    user.refreshToken = refreshToken;
 
     // waiting for the data to save in the database
     await user.save();
